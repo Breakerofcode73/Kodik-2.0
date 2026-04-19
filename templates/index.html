@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Поиск</title>
+    <!-- Стили Bootstrap 5 -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+  </head>
+  <body {% if is_dark %}class="dark-body"{% endif %}>
+    <!-- Контент -->
+    <form method="POST" action="/change_theme/" novalidate>
+      <button type="submit" class="btn {% if is_dark %}dark-{% endif %}btn-primary mb-3" style="position:absolute;top:1px">Сменить тему</button>
+    </form>
+    <div class="container mt-5">
+      {% if is_kodik_search %}
+        <h1 class="text-center mb-4">Поиск по Kodik</h1>
+      {% else %}
+        <h1 class="text-center mb-4">Поиск по Шикимори</h1>
+      {% endif %}
+      <form method="POST" novalidate>
+        <div class="mb-3">
+          <label for="original-url" class="form-label">Введите название</label>
+          <input class="{% if is_dark %}dark-{% endif %}form-control" id="original-url" name="kdk" required autocomplete=off>
+        </div>
+        <button type="submit" class="btn {% if is_dark %}dark-{% endif %}btn-primary mb-3">Поиск</button>
+      </form>
+      <h1 class="text-center mb-4">Поиск по id: (<a href='/help/'{% if is_dark %} class="dark-href"{% endif %}>Помощь</a>)</h1>
+      <div class="mb-3">
+        <form method="POST" novalidate>
+            <label for="original-url" class="form-label">Вставьте id <a href='https://shikimori.one' {% if is_dark %} class="dark-href"{% endif %}>Шикимори</a></label>
+            <input class="{% if is_dark %}dark-{% endif %}form-control" id="original-url" name="shikimori_id" required autocomplete=off>
+          <button type="submit" class="btn {% if is_dark %}dark-{% endif %}btn-primary mb-3">Поиск</button>
+        </form>
+      </div>
+      <div class="mb-3">
+        <form method="POST" novalidate>
+            <label for="original-url" class="form-label">Вставьте id <a href='https://www.kinopoisk.ru/' {% if is_dark %} class="dark-href"{% endif %}>Кинопоиск</a></label>
+            <input class="{% if is_dark %}dark-{% endif %}form-control" id="original-url" name="kinopoisk_id" required autocomplete=off>
+          <button type="submit" class="btn {% if is_dark %}dark-{% endif %}btn-primary mb-3">Поиск</button>
+        </form>
+      </div>
+    </div>
+    <!-- Скрипты Bootstrap 5 -->
+    <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+  </body>
+</html>

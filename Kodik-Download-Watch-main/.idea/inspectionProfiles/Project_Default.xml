@@ -1,0 +1,36 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="PyPackageRequirementsInspection" enabled="false" level="WARNING" enabled_by_default="false">
+      <option name="ignoredPackages">
+        <list>
+          <option value="anime_parsers_ru" />
+          <option value="beautifulsoup4" />
+          <option value="bidict" />
+          <option value="blinker" />
+          <option value="certifi" />
+          <option value="charset-normalizer" />
+          <option value="click" />
+          <option value="colorama" />
+          <option value="Flask" />
+          <option value="Flask-Mobility" />
+          <option value="Flask-SocketIO" />
+          <option value="h11" />
+          <option value="idna" />
+          <option value="itsdangerous" />
+          <option value="Jinja2" />
+          <option value="lxml" />
+          <option value="MarkupSafe" />
+          <option value="python-engineio" />
+          <option value="python-socketio" />
+          <option value="requests" />
+          <option value="simple-websocket" />
+          <option value="soupsieve" />
+          <option value="urllib3" />
+          <option value="Werkzeug" />
+          <option value="wsproto" />
+        </list>
+      </option>
+    </inspection_tool>
+  </profile>
+</component>
