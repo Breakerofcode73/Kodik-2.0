@@ -398,22 +398,45 @@ def change_room_seria_form(rid):
 @app.route('/room/<string:rid>/cs-<int:seria>/')
 def change_room_seria(rid, seria):
     if not watch_manager.is_room(rid):
-        return abort(400)
+        return abort(404)
+
     rdata = watch_manager.get_room_data(rid)
+    max_series = rdata.get('max_series', 1)
+    if seria < 1 or seria > max_series:
+        return abort(400)
+
     rdata['seria'] = seria
     rdata['play_time'] = 0
     watch_manager.room_used(rid)
-    socketio.send({"data": {"status": 'update_page', 'time': 0}}, to=rid)
+
+    socketio.emit('update_video', {
+        'seria': seria,
+        'quality': rdata['quality'],
+        'play_time': 0
+    }, to=rid)
+
     return redirect(f"/room/{rid}/")
+
 
 @app.route('/room/<string:rid>/cq-<int:quality>/')
 def change_room_quality(rid, quality):
     if not watch_manager.is_room(rid):
-        return abort(400)
+        return abort(404)
+
     rdata = watch_manager.get_room_data(rid)
+    allowed_qualities = [360, 480, 720, 1080]  # подставьте свои
+    if quality not in allowed_qualities:
+        return abort(400)
+
     rdata['quality'] = quality
     watch_manager.room_used(rid)
-    socketio.send({"data": {"status": 'update_page', 'time': rdata['play_time']}}, to=rid)
+
+    socketio.emit('update_video', {
+        'seria': rdata['seria'],
+        'quality': quality,
+        'play_time': rdata.get('play_time', 0)
+    }, to=rid)
+
     return redirect(f"/room/{rid}/")
 
 @app.route('/fast_download_act/<string:id_type>-<string:id>-<int:seria_num>-<string:translation_id>-<string:quality>/')

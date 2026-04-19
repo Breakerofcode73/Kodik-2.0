@@ -1,40 +1,74 @@
-from time import time
-from hashlib import md5
+import time
+import threading
+
+class Room:
+    def __init__(self, rid, seria_id, quality='720p', max_series=1):
+        self.rid = rid
+        self.seria_id = seria_id
+        self.current_series = 1
+        self.max_series = max_series
+        self.quality = quality
+        self.play_time = 0
+        self.last_update = time.time()
+
+    def to_dict(self):
+        return {
+            'rid': self.rid,
+            'seria_id': self.seria_id,
+            'seria': self.current_series,
+            'max_series': self.max_series,
+            'quality': self.quality,
+            'play_time': self.play_time
+        }
+
 
 class Manager:
-    def __init__(self, remove_time: int):
-        # remove_time - minutes через какое время простоя комната будет удалена
+    def __init__(self, remove_time=300):
+        """
+        remove_time : int
+            Время в секундах, после которого неактивная комната удаляется.
+        """
         self.rooms = {}
-        self.remove_time = remove_time * 60
+        self.lock = threading.Lock()
+        self.remove_time = remove_time
 
-    def new_room(self, data: dict) -> str:
-        now = time()
-        hsh = md5(str(now).encode('utf-8')).hexdigest()
-        self.rooms[hsh] = data
-        self.rooms[hsh]['last_used'] = now
-        return hsh
-    
-    def is_room(self, id: str) -> bool:
-        if id in self.rooms.keys():
+    def create_room(self, rid, seria_id, quality='720p', max_series=1):
+        with self.lock:
+            if rid in self.rooms:
+                return False
+            self.rooms[rid] = Room(rid, seria_id, quality, max_series)
             return True
-        else:
-            return False
-    
-    def get_room_data(self, id: str) -> dict:
-        return self.rooms[id]
 
-    def update_room(self, id: str, data: dict):
-        self.rooms[id] = data
-        self.room_used(id)
+    def is_room(self, rid):
+        with self.lock:
+            return rid in self.rooms
 
-    def update_play_time(self, id: str, play_time: float):
-        self.rooms[id]['play_time'] = play_time
+    def get_room(self, rid):
+        with self.lock:
+            return self.rooms.get(rid)
 
-    def room_used(self, id: str):
-        self.rooms[id]['last_used'] = time()
-    
+    def get_room_data(self, rid):
+        room = self.get_room(rid)
+        if room:
+            return room.to_dict()
+        return None
+
+    def room_used(self, rid):
+        room = self.get_room(rid)
+        if room:
+            room.last_update = time.time()
+
+    def update_play_time(self, rid, play_time):
+        room = self.get_room(rid)
+        if room:
+            room.play_time = play_time
+            self.room_used(rid)
+
     def remove_old_rooms(self):
-        now = time()
-        for room_id in self.rooms.keys():
-            if self.rooms[room_id]['last_used']+self.remove_time < now:
-                del self.rooms[room_id]
+        """Удаляет комнаты, которые не использовались дольше self.remove_time секунд."""
+        with self.lock:
+            now = time.time()
+            to_remove = [rid for rid, room in self.rooms.items()
+                         if now - room.last_update > self.remove_time]
+            for rid in to_remove:
+                del self.rooms[rid]

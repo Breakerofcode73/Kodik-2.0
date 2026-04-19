@@ -11,12 +11,10 @@ USE_KODIK_SEARCH = False
 
 if config.KODIK_TOKEN is None:
     try:
-        # Проверяем, может ли токен получить доступ к апи полностью
-        kodik_parser = KodikParser(token=KodikParser.get_token(), use_lxml=config.USE_LXML, validate_token=True)
-    except errors.TokenError:
-        print("Токен неверен для нескольких функций. Поиск будет происходить по шикимори.")
-        # Если не может, то без валидации (поиск будет через шики)
         kodik_parser = KodikParser(token=KodikParser.get_token(), use_lxml=config.USE_LXML, validate_token=False)
+    except Exception as e:
+        print(f"⚠️ Kodik parser init failed: {e}")
+        kodik_parser = None
     else:
         # Если ошибки по токену нет, значит используем поиск по кодику
         USE_KODIK_SEARCH = True
@@ -205,3 +203,34 @@ def is_good_quality_image(src: str) -> bool:
         return False
     else:
         return True
+
+
+def get_seria_info(seria_id):
+    """
+    Возвращает словарь с данными о сериале и прямой ссылкой на видео.
+    Использует глобальный kodik_parser из getters.py
+    """
+    if not kodik_parser:
+        raise Exception("Kodik parser не инициализирован")
+
+    # Получаем данные о сериале по ID (может быть kinopoisk_id, imdb_id, shikimori_id)
+    # В зависимости от вашего проекта, возможно, нужно определить тип ID
+    # Предположим, что seria_id — это kodik_id или другой идентификатор, который понимает парсер
+    try:
+        # Пример: получаем информацию о сериале
+        info = kodik_parser.get_seria_info(seria_id)  # уточните реальный метод парсера
+        if not info:
+            return None
+
+        # Получаем прямую ссылку на видео (1-я серия, качество 720p по умолчанию)
+        video_url = kodik_parser.get_video_url(seria_id, seria=1, quality='720p')
+
+        return {
+            'video_url': video_url,
+            'id_type': info.get('id_type', 'kinopoisk'),
+            'title': info.get('title', 'Без названия'),
+            'max_series': info.get('series_count', 1)
+        }
+    except Exception as e:
+        print(f"Ошибка получения данных сериала {seria_id}: {e}")
+        return None

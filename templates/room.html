@@ -1,76 +1,213 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Совместный просмотр</title>
-    <!-- Стили Bootstrap 5 -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
-  </head>
-  <body {% if is_dark %}class="dark-body"{% endif %}>
-    <!-- Контент -->
-    <table>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Совместный просмотр</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+  <style>
+    .dark-body { background-color: #1e1e1e; color: #ddd; }
+    .dark-body .dark-btn-primary { background-color: #0d6efd; border-color: #0d6efd; }
+    .dark-body .dark-form-control { background-color: #333; color: #eee; border-color: #555; }
+    .dark-body .dark-href { color: #8ab4f8; }
+  </style>
+</head>
+<body {% if is_dark %}class="dark-body"{% endif %}
+      data-room-id="{{ rid }}"
+      data-seria-id="{{ id }}"
+      data-id-type="{{ id_type }}"
+      data-max-series="{{ series }}"
+      data-is-dark="{{ is_dark|lower }}"
+      data-current-seria="{{ seria }}"
+      data-current-quality="{{ quality }}"
+      data-straight-url="{{ straight_url }}"
+      data-start-time="{{ start_time }}">
+
+  <table>
+    <tr>
+      <td><a href='/'><button class="btn {% if is_dark %}dark-{% endif %}btn-primary">На главную</button></a></td>
+      <td>
+        <form method="POST" action="/change_theme/" novalidate>
+          <button type="submit" class="btn {% if is_dark %}dark-{% endif %}btn-primary mb-3" style="position:absolute;top:1px">Сменить тему</button>
+        </form>
+      </td>
+    </tr>
+  </table>
+
+  <div class="container mt-5">
+    <h1 id="header">Совместный просмотр. Серия <span id="current-seria-display">{{ seria }}</span> (<a href='https://kodikdb.com/find-player?{{ id_type }}ID={{ id }}&only_season=false'{% if is_dark %} class="dark-href"{% endif %}>Смотреть в Kodik'е</a>)</h1>
+
+    <video controls width="100%" autoplay id="vid">
+      <source src="{{ straight_url }}#t={{ start_time }}" type='video/mp4'>
+    </video>
+
+    <table width="100%">
       <tr>
-        <td><a href='/'><button class="btn {% if is_dark %}dark-{% endif %}btn-primary">На главную</button></a></td>
-        <td><form method="POST" action="/change_theme/" novalidate>
-            <button type="submit" class="btn {% if is_dark %}dark-{% endif %}btn-primary mb-3" style="position:absolute;top:1px">Сменить тему</button>
-        </form></td>
-      </tr>
-    </table>
-    <div class="container mt-5">
-      <h1 id="header">Совместный просмотр. Серия {{ seria }} (<a href='https://kodikdb.com/find-player?{{ id_type }}ID={{ id }}&only_season=false'{% if is_dark %} class="dark-href"{% endif %}>Смотреть в Kodik'е</a>)</h1>
-      <video controls="controls" width="100%" autoplay id='vid'>
-        <source src="{{ straight_url }}#t={{ start_time }}" type='video/mp4'>
-      </video>
-      <table width="100%">
-        <tr>
-          <td>
-            <table>
+        <td>
+          <table>
+            <tr>
               {% if seria > 1 %}
-                <td><a href='cs-{{ seria-1 }}/'><button class="btn {% if is_dark %}dark-{% endif %}btn-primary">Предыдущая серия</button></a></td>
+                <td><a href="cs-{{ seria-1 }}/" class="change-seria-link" data-seria="{{ seria-1 }}"><button class="btn {% if is_dark %}dark-{% endif %}btn-primary">Предыдущая серия</button></a></td>
               {% endif %}
               {% if seria < series %}
-                <td><a href='cs-{{ seria+1 }}'><button class="btn {% if is_dark %}dark-{% endif %}btn-primary">Следующая серия</button></a></td>
+                <td><a href="cs-{{ seria+1 }}/" class="change-seria-link" data-seria="{{ seria+1 }}"><button class="btn {% if is_dark %}dark-{% endif %}btn-primary">Следующая серия</button></a></td>
               {% endif %}
-            </table>
-          </td>
-          <td>
-            <table align='right'>
-              <td><button id="skip_left" class="btn {% if is_dark %}dark-{% endif %}btn-primary" onclick="skip_left();">Назад на 1:20</button></td>
-              <td><button id="skip_right" class="btn {% if is_dark %}dark-{% endif %}btn-primary" onclick="skip_right();">Вперед на 1:20</button></td>
-            </table>
-          </td>
-        </tr>
-      </table>
-      {% if seria > 0 %}
-      <form method="POST" novalidate>
-        <div class="mb-3">
-        <label for="choose_seria_num" class="form-label">Введите номер серии (1-{{ data[:data.find("-")] }}):</label>
+            </tr>
+          </table>
+        </td>
+        <td>
+          <table align='right'>
+            <tr>
+              <td><button id="skip_left" class="btn {% if is_dark %}dark-{% endif %}btn-primary">Назад на 1:20</button></td>
+              <td><button id="skip_right" class="btn {% if is_dark %}dark-{% endif %}btn-primary">Вперед на 1:20</button></td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    {% if seria > 0 %}
+    <form id="seria-form">
+      <div class="mb-3">
+        <label for="choose_seria_num" class="form-label">Введите номер серии (1-{{ series }}):</label>
         <table style="position:relative; top:-15px">
           <tr>
-            <td><input id="choose_seria_num" name="seria" required autocomplete=off cols="10" maxlength='80' class="{% if is_dark %}dark-{% endif %}form-control" style="width: 100px;"></td>
+            <td><input id="choose_seria_num" name="seria" required autocomplete="off" class="{% if is_dark %}dark-{% endif %}form-control" style="width: 100px;"></td>
             <td><button type="submit" class="btn {% if is_dark %}dark-{% endif %}btn-primary mb-3" style="position: relative; top:8px">Перейти</button></td>
           </tr>
         </table>
-        </div>
-      </form>
-      {% endif %}
-      <p id="current_quality">Текущее качество видео: {{ quality }}<br>Изменить: <a href='cq-720/'{% if is_dark %} class="dark-href"{% endif %}>720</a> | <a href='cq-480/'{% if is_dark %} class="dark-href"{% endif %}>480</a> | <a href='cq-360/'{% if is_dark %} class="dark-href"{% endif %}>360</a></p>
-      <button class="copy_link btn {% if is_dark %}dark-{% endif %}btn-primary mb-3">Скопировать ссылку на комнату</button>
-      <button class="create_qr btn {% if is_dark %}dark-{% endif %}btn-primary mb-3">Создать qr</button>
-      <div id='qr_code_container'><div id='qr_code'></div></div>
-      <p>
-        Если у вас не найден плеер, попробуйте сменить качество.<br>
-        Для синхронизации видео с другими участниками комнаты, поставьте на паузу и/или снимите с неё.
-      </p>
-    </div>
-    <!-- Скрипты Bootstrap 5 -->
-    <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
-    <!-- Скрипты генерации qr кода -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <!-- Скрипты Socket -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==" crossorigin="anonymous"></script>
-    <!-- Скрипт комнаты -->
-    <script src="{{ url_for('static', filename='js/room_funcs.js') }}"></script>
-  </body>
+      </div>
+    </form>
+    {% endif %}
+
+    <p id="current_quality">Текущее качество видео: <span id="current-quality-display">{{ quality }}</span><br>
+      Изменить:
+      <a href="cq-720/" class="change-quality-link" data-quality="720"{% if is_dark %} class="dark-href"{% endif %}>720</a> |
+      <a href="cq-480/" class="change-quality-link" data-quality="480"{% if is_dark %} class="dark-href"{% endif %}>480</a> |
+      <a href="cq-360/" class="change-quality-link" data-quality="360"{% if is_dark %} class="dark-href"{% endif %}>360</a>
+    </p>
+
+    <button class="copy_link btn {% if is_dark %}dark-{% endif %}btn-primary mb-3">Скопировать ссылку на комнату</button>
+    <button class="create_qr btn {% if is_dark %}dark-{% endif %}btn-primary mb-3">Создать qr</button>
+    <div id='qr_code_container'><div id='qr_code'></div></div>
+
+    <p>
+      Если у вас не найден плеер, попробуйте сменить качество.<br>
+      Для синхронизации видео с другими участниками комнаты, поставьте на паузу и/или снимите с неё.
+    </p>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+  <script src="{{ url_for('static', filename='js/room_funcs.js') }}"></script>
+
+  <script>
+    (function() {
+      const body = document.body;
+      const roomId = body.dataset.roomId;
+      const seriaId = body.dataset.seriaId;
+      const idType = body.dataset.idType;
+      const maxSeries = parseInt(body.dataset.maxSeries, 10);
+      const isDark = body.dataset.isDark === 'true';
+      let currentSeria = parseInt(body.dataset.currentSeria, 10);
+      let currentQuality = parseInt(body.dataset.currentQuality, 10);
+
+      const video = document.getElementById('vid');
+      const seriaDisplay = document.getElementById('current-seria-display');
+      const qualityDisplay = document.getElementById('current-quality-display');
+
+      const socket = io();
+
+      socket.on('connect', function() {
+        socket.emit('join', {room: roomId});
+      });
+
+      function updateVideoSource(data) {
+        const wasPlaying = !video.paused;
+        const newUrl = data.video_url;
+        if (!newUrl) {
+          console.error('No video_url in update');
+          return;
+        }
+        video.src = newUrl;
+        video.load();
+
+        video.addEventListener('loadedmetadata', function onLoaded() {
+          video.removeEventListener('loadedmetadata', onLoaded);
+          video.currentTime = data.play_time || 0;
+          if (wasPlaying) video.play().catch(e => {});
+        });
+
+        currentSeria = data.seria;
+        currentQuality = data.quality;
+        seriaDisplay.textContent = data.seria;
+        qualityDisplay.textContent = data.quality + 'p';
+        document.getElementById('header').innerHTML = `Совместный просмотр. Серия ${data.seria} (<a href='https://kodikdb.com/find-player?${idType}ID=${seriaId}&only_season=false'${isDark ? ' class="dark-href"' : ''}>Смотреть в Kodik'е</a>)`;
+      }
+
+      socket.on('update_video', function(data) {
+        updateVideoSource(data);
+      });
+
+      function sendBroadcast(type, value) {
+        socket.emit('broadcast', { room: roomId, type: type, value: value });
+      }
+
+      video.addEventListener('pause', () => sendBroadcast('pause', video.currentTime));
+      video.addEventListener('play', () => sendBroadcast('play', video.currentTime));
+      video.addEventListener('seeked', () => sendBroadcast('seek', video.currentTime));
+
+      socket.on('broadcast', function(data) {
+        if (data.type === 'pause') {
+          video.pause();
+          if (Math.abs(video.currentTime - data.value) > 1) video.currentTime = data.value;
+        } else if (data.type === 'play') {
+          video.play().catch(e => {});
+          if (Math.abs(video.currentTime - data.value) > 1) video.currentTime = data.value;
+        } else if (data.type === 'seek') {
+          if (Math.abs(video.currentTime - data.value) > 0.5) video.currentTime = data.value;
+        }
+      });
+
+      document.querySelectorAll('.change-seria-link').forEach(link => {
+        link.addEventListener('click', e => {
+          e.preventDefault();
+          const seria = parseInt(link.dataset.seria);
+          fetch(`/room/${roomId}/cs-${seria}/`).catch(() => window.location.href = `/room/${roomId}/cs-${seria}/`);
+        });
+      });
+
+      document.querySelectorAll('.change-quality-link').forEach(link => {
+        link.addEventListener('click', e => {
+          e.preventDefault();
+          const quality = parseInt(link.dataset.quality);
+          fetch(`/room/${roomId}/cq-${quality}/`).catch(() => window.location.href = `/room/${roomId}/cq-${quality}/`);
+        });
+      });
+
+      const form = document.getElementById('seria-form');
+      if (form) {
+        form.addEventListener('submit', e => {
+          e.preventDefault();
+          const input = document.getElementById('choose_seria_num');
+          let seria = parseInt(input.value);
+          if (isNaN(seria) || seria < 1) seria = 1;
+          if (seria > maxSeries) seria = maxSeries;
+          fetch(`/room/${roomId}/cs-${seria}/`).catch(() => window.location.href = `/room/${roomId}/cs-${seria}/`);
+        });
+      }
+
+      document.getElementById('skip_left').addEventListener('click', () => {
+        video.currentTime = Math.max(0, video.currentTime - 80);
+        sendBroadcast('seek', video.currentTime);
+      });
+      document.getElementById('skip_right').addEventListener('click', () => {
+        video.currentTime = Math.min(video.duration, video.currentTime + 80);
+        sendBroadcast('seek', video.currentTime);
+      });
+
+    })();
+  </script>
+</body>
 </html>
