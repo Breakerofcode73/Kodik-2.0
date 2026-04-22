@@ -1,107 +1,145 @@
+# Kodik-2.0/cache.py
+# Модуль кеширования данных с обработкой ошибок
+
 from json import load, dump, JSONDecodeError
 from time import time
+import os
+
 
 class Cache:
     """
-    data example:
-        {
-            "title": "Пример имени",
-            "image": "https://example.com/picture.jpg",
-            "score": "7.25",
-            "status": "онгоинг",
-            "date": "c 5 декабря 2023 г",
-            "year": "2023",
-            "type": "ТВ сериал",
-            "rating": "PG",
-            "description": "Описание"
-            "last_updated": 123456789.0168159, Временной отпечаток последнего обновления информации
-            "related": [
-                {
-                    "date": "Даты выхода/сезон",
-                    "name": "Название",
-                    "picture": "Ссылка на картинку",
-                    "relation": "тип связи (продолжение, предыстория, адаптация и т.п.)",
-                    "type": "Тип (TV сериал, OVA, ONA, манга, ранобэ и т.д.)",
-                    "url": "Ссылка на страницу шикимори"
-                }
-            ],
-            "serial_data": {
-                "translations": [
-                    {
-                        "id": "ID перевода",
-                        "name": "Название перевода/озвучки",
-                        "type": "voice/subtitles"
-                    }
-                ],
-                "series_count": Кол-во серий
-            },
-            "urls": {
-                "610": {  ID перевода
-                        1: "//example.com/gfjbkjgrg/" Сохранение в таком формате из-за особенности парсинга с кодика
-                    }
+    Класс для кеширования данных аниме.
+
+    Структура данных:
+    {
+        "title": "Название аниме",
+        "image": "https://example.com/image.jpg",
+        "score": "7.25",
+        "status": "онгоинг",
+        "date": "c 5 декабря 2023 г",
+        "year": "2023",
+        "type": "ТВ сериал",
+        "rating": "PG",
+        "description": "Описание",
+        "last_updated": 123456789.0168159,
+        "related": [...],
+        "serial_data": {
+            "translations": [...],
+            "series_count": 24
+        },
+        "urls": {
+            "610": {
+                1: "//example.com/video/"
             }
         }
+    }
     """
+
     def __init__(self, SAVED_DATA_FILE: str, SAVING_PERIOD: int, CACHE_LIVE_TIME: int):
         self._path = SAVED_DATA_FILE
+        self.data = {}
+
+        # Попытка загрузить данные из файла с обработкой всех возможных ошибок
         try:
             self.data = self.get_data_from_file()
-        except JSONDecodeError:
-            with open(SAVED_DATA_FILE, 'w') as f:
-                dump({}, f)
-            self.data = {}
+        except (JSONDecodeError, FileNotFoundError, PermissionError, OSError) as e:
+            # Создаём новый пустой файл кеша при любой ошибке чтения
+            try:
+                # Убедимся, что директория существует
+                dir_path = os.path.dirname(self._path)
+                if dir_path and not os.path.exists(dir_path):
+                    os.makedirs(dir_path, exist_ok=True)
+
+                with open(self._path, 'w', encoding='utf-8') as f:
+                    dump({}, f, ensure_ascii=False, indent=2)
+                self.data = {}
+                print(f"[CACHE] Created new cache file: {self._path}")
+            except Exception as create_error:
+                print(f"[CACHE] ERROR creating cache file: {create_error}")
+                self.data = {}
+
         self.__t = time()
-        self.period = SAVING_PERIOD*60 # Перевод в секунды из минут
-        self.life_time = CACHE_LIVE_TIME*24*60*60 # Перевод в секунды из дней
-        print(f"[CACHE] USING CACHE. SAVE_PERIOD: {self.period} sec. LIFE_TIME: {self.life_time} sec. FILE: {self._path}")
-    
+        self.period = SAVING_PERIOD * 60  # Перевод в секунды из минут
+        self.life_time = CACHE_LIVE_TIME * 24 * 60 * 60  # Перевод в секунды из дней
+        print(f"[CACHE] USING CACHE. SAVE_PERIOD: {self.period}s. LIFE_TIME: {self.life_time}s. FILE: {self._path}")
+
     def get_data_from_file(self) -> dict:
-        """
-        Возвращает данные из файла
-        """
+        """Возвращает данные из файла кеша."""
+        if not os.path.exists(self._path):
+            raise FileNotFoundError(f"Cache file not found: {self._path}")
+
         with open(self._path, 'r', encoding='UTF-8') as f:
+            content = f.read().strip()
+            if not content:
+                return {}
             return load(f)
-    
+
     def save_data_to_file(self):
-        """
-        Сохраняет данные в файл
-        """
-        print(f"[CACHE] Data saved to \"{self._path}\"")
-        with open(self._path, 'w', encoding='utf-8') as f:
-            dump(self.data, f, ensure_ascii=False)
+        """Сохраняет данные в файл кеша."""
+        try:
+            # Создаём директорию если не существует
+            dir_path = os.path.dirname(self._path)
+            if dir_path and not os.path.exists(dir_path):
+                os.makedirs(dir_path, exist_ok=True)
+
+            # Временный файл для атомарной записи
+            temp_path = self._path + '.tmp'
+            with open(temp_path, 'w', encoding='utf-8') as f:
+                dump(self.data, f, ensure_ascii=False, indent=2)
+
+            # Атомарная замена файла
+            os.replace(temp_path, self._path)
+            print(f"[CACHE] Data saved to \"{self._path}\"")
+        except Exception as e:
+            print(f"[CACHE] ERROR saving data: {e}")
+            # Удаляем временный файл если он остался
+            if os.path.exists(self._path + '.tmp'):
+                try:
+                    os.remove(self._path + '.tmp')
+                except:
+                    pass
 
     def get_data_by_id(self, id: str) -> dict:
-        """
-        Получение информации по id тайтла.
-        Если информация не найдена, вернётся None
-        """
-        if id in self.data.keys():
+        """Получение информации по id тайтла."""
+        if id in self.data:
             return self.data[id]
-        else:
-            raise KeyError("Id not found")
-    
+        raise KeyError(f"Id not found: {id}")
+
     def get_seria(self, id: str, translation_id: str, seria_num: int) -> str:
-        if seria_num in self.data[id]['urls'][translation_id].keys():
-            return self.data[id]['urls'][translation_id][seria_num]
-        else:
-            raise KeyError("Id not found")
+        """Получение ссылки на серию."""
+        if id not in self.data:
+            raise KeyError(f"Id not found: {id}")
+        if translation_id not in self.data[id].get('urls', {}):
+            raise KeyError(f"Translation not found: {translation_id}")
+        if seria_num not in self.data[id]['urls'][translation_id]:
+            raise KeyError(f"Seria not found: {seria_num}")
+        return self.data[id]['urls'][translation_id][seria_num]
 
     def add_seria(self, id: str, translation_id: str, seria_num: int, url: str):
-        """
-        Добавляет ссылку на серию в заданном качестве
-        """
-        if id not in self.data.keys():
-            raise KeyError("Id not found")
-        else:
-            if not self.is_translation(id, translation_id):
-                self.add_translation(id, translation_id)
-            self.data[id]['urls'][translation_id][seria_num] = url
-        
+        """Добавляет ссылку на серию в заданном качестве."""
+        if id not in self.data:
+            raise KeyError(f"Id not found: {id}")
+
+        if 'urls' not in self.data[id]:
+            self.data[id]['urls'] = {}
+        if translation_id not in self.data[id]['urls']:
+            self.data[id]['urls'][translation_id] = {}
+
+        self.data[id]['urls'][translation_id][seria_num] = url
+
         if time() - self.__t > self.period:
             self.__t = time()
             self.save_data_to_file()
-    
-    def add_id(self, id: str, title: str, img_url: str, score: str, status: str, dates: str, year: int, ttype: str, mpaa_rating: str = 'Неизвестно', description: str = '', related: list = [], serial_data: dict = {}):
+
+    def add_id(self, id: str, title: str, img_url: str, score: str, status: str,
+               dates: str, year: int, ttype: str, mpaa_rating: str = 'Неизвестно',
+               description: str = '', related: list = None, serial_data: dict = None):
+        """Добавляет или обновляет данные тайтла в кеше."""
+        if related is None:
+            related = []
+        if serial_data is None:
+            serial_data = {}
+
         data = {
             "title": title,
             "image": img_url,
@@ -115,85 +153,97 @@ class Cache:
             "last_updated": time(),
             "related": related,
             "serial_data": serial_data,
-            "urls": {
-            }
+            "urls": {}
         }
-        if self.is_id(id):
+
+        # Удаляем старую запись если существует
+        if id in self.data:
             del self.data[id]
+
         self.data[id] = data
+
         if time() - self.__t > self.period:
             self.__t = time()
             self.save_data_to_file()
 
     def add_translation(self, id: str, translation_id: str):
-        if id in self.data.keys():
-            self.data[id]['urls'][translation_id] = {}
-        else:
-            raise KeyError("Id not found")
+        """Добавляет перевод для тайтла."""
+        if id not in self.data:
+            raise KeyError(f"Id not found: {id}")
+
+        if 'urls' not in self.data[id]:
+            self.data[id]['urls'] = {}
+        self.data[id]['urls'][translation_id] = {}
+
         if time() - self.__t > self.period:
             self.__t = time()
             self.save_data_to_file()
 
     def add_serial_data(self, id: str, serial_data: dict):
-        if id in self.data.keys():
-            self.data[id]["serial_data"] = serial_data
-        else:
-            raise KeyError("Id not found")
+        """Добавляет данные о сериях."""
+        if id not in self.data:
+            raise KeyError(f"Id not found: {id}")
+        self.data[id]["serial_data"] = serial_data
+
         if time() - self.__t > self.period:
             self.__t = time()
             self.save_data_to_file()
-    
+
     def add_related(self, id: str, related: list):
-        if id in self.data.keys():
-            self.data[id]['related'] = related
-        else:
-            raise KeyError("Id not found")
+        """Добавляет связанные тайтлы."""
+        if id not in self.data:
+            raise KeyError(f"Id not found: {id}")
+        self.data[id]['related'] = related
+
         if time() - self.__t > self.period:
             self.__t = time()
             self.save_data_to_file()
-    
+
     def change_image(self, id: str, image_src: str):
+        """Обновляет изображение тайтла."""
         if self.is_id(id):
-            temp = self.get_data_by_id(id)
-            temp['image'] = image_src
-            del self.data[id]
-            self.data[id] = temp
+            self.data[id]['image'] = image_src
 
     def is_id(self, id: str) -> bool:
+        """Проверяет наличие id в кеше и его актуальность."""
         try:
-            if id in self.data.keys():
-                if self._is_expired(self.data[id]['last_updated']):
+            if id in self.data:
+                if self._is_expired(self.data[id].get('last_updated', 0)):
                     del self.data[id]
                     return False
                 return True
-            else:
-                return False 
-        except KeyError:
+            return False
+        except Exception:
             return False
 
     def is_translation(self, id: str, translation_id: str) -> bool:
+        """Проверяет наличие перевода."""
         try:
-            if translation_id in self.data[id]['urls'].keys():
-                if self._is_expired(self.data[id]['last_updated']):
-                    del self.data[id]
-                    return False
-                return True
-            else:
-                return False
-        except KeyError:
+            if id in self.data and 'urls' in self.data[id]:
+                if translation_id in self.data[id]['urls']:
+                    if self._is_expired(self.data[id].get('last_updated', 0)):
+                        del self.data[id]
+                        return False
+                    return True
             return False
-        
+        except Exception:
+            return False
+
     def is_seria(self, id: str, translation_id: str, seria_num: int) -> bool:
+        """Проверяет наличие серии."""
         try:
-            if seria_num in self.data[id]['urls'][translation_id].keys():
-                if self._is_expired(self.data[id]['last_updated']):
+            if (id in self.data and
+                    'urls' in self.data[id] and
+                    translation_id in self.data[id]['urls'] and
+                    seria_num in self.data[id]['urls'][translation_id]):
+                if self._is_expired(self.data[id].get('last_updated', 0)):
                     del self.data[id]
                     return False
                 return True
-            else:
-                return False
-        except KeyError:
+            return False
+        except Exception:
             return False
 
     def _is_expired(self, cache_time: float) -> bool:
-        return True if time()-cache_time > self.life_time else False
+        """Проверяет истёк ли срок жизни кеша."""
+        return (time() - cache_time) > self.life_time if cache_time else True
