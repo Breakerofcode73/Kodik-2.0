@@ -1,229 +1,216 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
+<html lang="ru">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% if title %}{{ title }} - {% endif %}Серия {{ seria }}</title>
-    <!-- Стили Bootstrap 5 -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
-  </head>
-  <body {% if is_dark %}class="dark-body"{% endif %}>
-    <!-- Контент -->
-    <table>
-      <tr>
-        <td><a href='/'><button class="btn {% if is_dark %}dark-{% endif %}btn-primary">На главную</button></a></td>
-        <td><form method="POST" action="/change_theme/" novalidate>
-            <button type="submit" class="btn {% if is_dark %}dark-{% endif %}btn-primary mb-3" style="position:absolute;top:1px">Сменить тему</button>
-        </form></td>
-      </tr>
-    </table>
-    <div class="container mt-5">
-      <h1>Серия {{ seria }} / {{ series[1] }}</h1>
-      <video controls="controls" width="100%" autoplay>
-        <source src="{{ straight_url }}" type='video/mp4'>
-      </video>
-      <table width="100%">
-        <tr>
-          <td>
-            <table>
-              {% if seria > series[0] %}
-                <td><a id="previous_seria_a" href='/watch/{{ serv }}/{{ id }}/{{ data }}/{{ seria-1 }}/{{ quality }}/'><button class="btn {% if is_dark %}dark-{% endif %}btn-primary">Предыдущая серия</button></a></td>
-              {% endif %}
-              {% if seria < series[1] %}
-                <td><a id="next_seria_a" href='/watch/{{ serv }}/{{ id }}/{{ data }}/{{ seria+1 }}/{{ quality }}/'><button class="btn {% if is_dark %}dark-{% endif %}btn-primary">Следующая серия</button></a></td>
-              {% endif %}
-            </table>
-          </td>
-          <td>
-            {% if is_mobile %}
-              <div>
-                <div style="display: flex; justify-content: center; text-align: center;">
-                  Перемотка на 1:20
-                </div>
-                <div style="display: flex; justify-content: center;">
-                  <button id="skip_left1" class="btn {% if is_dark %}dark-{% endif %}btn-primary" style="display: inline; width: 50%;" onclick="skip_left();">&lt;</button>
-                  <button id="skip_right1" class="btn {% if is_dark %}dark-{% endif %}btn-primary" style="display: inline; width: 50%;" onclick="skip_right();">&gt;</button>
-                </div>
-              </div>
-            {% else %}
-              <table align='right'>
-                <td><button id="skip_left2" class="btn {% if is_dark %}dark-{% endif %}btn-primary" onclick="skip_left();">Назад на 1:20</button></td>
-                <td><button id="skip_right2" class="btn {% if is_dark %}dark-{% endif %}btn-primary" onclick="skip_right();">Вперед на 1:20</button></td>
-              </table>
-            {% endif %}
-          </td>
-        </tr>
-      </table>
-      {% if series[1] != 0 %}
-      <form method="POST" novalidate>
-        <div class="mb-3">
-        <label for="choose_seria_num" class="form-label">Введите номер серии ({{ data[:data.find("-")] }}):</label>
-        <table style="position:relative; top:-15px">
-          <tr>
-            <td><input id="choose_seria_num" name="seria" required autocomplete=off cols="10" maxlength='80' class="{% if is_dark %}dark-{% endif %}form-control" style="width: 100px;"></td>
-            <td><button type="submit" class="btn {% if is_dark %}dark-{% endif %}btn-primary mb-3" style="position: relative; top:8px">Перейти</button></td>
-          </tr>
-        </table>
-        </div>
-      </form>
-      {% endif %}
-      <p>Текущее качество видео: {{ quality }}<br>Изменить: <a href='q-720/'{% if is_dark %} class="dark-href"{% endif %}>720</a> | <a href='q-480/'{% if is_dark %} class="dark-href"{% endif %}>480</a> | <a href='q-360/'{% if is_dark %} class="dark-href"{% endif %}>360</a></p>
-      <p>
-        <table>
-          <tr>
-            {% if allow_watch_together %}
-            <td>
-              <form action='/create_room/' method="POST" novalidate>
-                <!-- Добавлены скрытые поля с необходимыми данными -->
-                <input type="hidden" name="id" value="{{ id }}">
-                <input type="hidden" name="series_count" value="{{ seria }}:{{ series[1] }}">
-                <input type="hidden" name="quality" value="{{ quality }}">
-                <div class="mb-3">
-                  <button type="submit" class="btn {% if is_dark %}dark-{% endif %}btn-primary mb-3" style="position: relative; top:8px">Смотреть вместе</button>
-                </div>
-              </form>
-            </td>
-            {% endif %}
-            <td>
-              <button id="create_qr_btn" class="btn {% if is_dark %}dark-{% endif %}btn-primary mb-3" style="position: relative;">Ссылка с таймингом</button>
-            </td>
-          </tr>
-        </table>
-      </p>
-      <div id="timing_link_div" style="display: none; padding-bottom: 30px;">
-        <input id="link_container">
-        <div id="qr_code_container"><div id='qr_code'></div></div>
-      </div>
-      <p>
-        <a href='{{ url }}/'{% if is_dark %} class="dark-href"{% endif %}>Скачать эту серию</a>
-        (<a href='{{ straight_url }}/'{% if is_dark %} class="dark-href"{% endif %}>Прямая ссылка</a>)
-      </p>
-      <p>Если у вас не найден плеер или не получается скачать, попробуйте сменить качество.</p>
-      <button class="btn {% if is_dark %}dark-{% endif %}btn-primary mb-3" style="position: relative;" onclick="document.location.replace(`/download/${page_data['serv']}/${page_data['id']}/`)">Вернуться на страницу тайтла</button>
-    </div>
-    <!-- Скрипты генерации qr кода -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <!-- Собираем данные в json подобное -->
-    <div style="display: none" id="data-holder">
-      {
-        "cur_ser": {{seria}},
-        "max_ser": {{series}},
-        "cur_quality": {{quality}},
-        "timing": {{timing}},
-        "serv": "{{serv}}",
-        "id": "{{id}}",
-        "data": "{{data}}",
-        "seria": "{{seria}}"
-      }
-    </div>
-    <!-- Скрипты Bootstrap 5 -->
-    <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+    <title>{% if title %}{{ title }}{% else %}Просмотр{% endif %} — Серия {{ seria }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+</head>
+<body class="{% if is_dark %}dark{% endif %} watch-page">
+    <div class="app-container">
+        <!-- Шапка -->
+        <header class="site-header">
+            <div class="header-content">
+                <a href="/" class="logo">
+                    <span class="logo-icon">🎬</span>
+                    <span class="logo-text">Kodik-2.0</span>
+                </a>
 
+                <nav class="header-nav">
+                    {% if title %}
+                        <span class="anime-title">{{ title }}</span>
+                    {% endif %}
+
+                    <form method="POST" action="{{ url_for('change_theme') }}" class="theme-toggle">
+                        <button type="submit" class="btn-icon" title="Сменить тему">
+                            {% if is_dark %}☀️{% else %}🌙{% endif %}
+                        </button>
+                    </form>
+
+                    <a href="/download/{{ serv }}/{{ id }}/" class="btn btn-small">
+                        ← Назад
+                    </a>
+                </nav>
+            </div>
+        </header>
+
+        <!-- Плеер -->
+        <main class="watch-main">
+            <div class="player-container">
+                <!-- Видео плеер -->
+                <div class="video-wrapper">
+                    <video
+                        id="videoPlayer"
+                        class="video-element"
+                        src="{{ straight_url }}"
+                        controls
+                        preload="metadata"
+                        poster="{{ url_for('static', filename='img/player-poster.jpg') }}"
+                    >
+                        Ваш браузер не поддерживает видео.
+                    </video>
+
+                    <!-- Оверлей загрузки -->
+                    <div class="video-overlay" id="videoOverlay">
+                        <div class="loading-spinner"></div>
+                        <p>Загрузка видео...</p>
+                    </div>
+                </div>
+
+                <!-- Панель управления -->
+                <div class="player-controls">
+                    <!-- Навигация по сериям -->
+                    <div class="seria-nav">
+                        {% if seria > series[0] %}
+                            <a href="/watch/{{ serv }}/{{ id }}/{{ data }}/{{ seria - 1 }}/{{ quality }}/"
+                               class="nav-btn prev">
+                                ← Предыдущая
+                            </a>
+                        {% endif %}
+
+                        <span class="seria-info">
+                            Серия <strong>{{ seria }}</strong> из {{ series[1] }}
+                        </span>
+
+                        {% if seria < series[1] %}
+                            <a href="/watch/{{ serv }}/{{ id }}/{{ data }}/{{ seria + 1 }}/{{ quality }}/"
+                               class="nav-btn next">
+                                Следующая →
+                            </a>
+                        {% endif %}
+                    </div>
+
+                    <!-- Быстрые действия -->
+                    <div class="quick-actions">
+                        {% if not is_mobile %}
+                            <button class="action-btn" onclick="seekVideo(-80)" title="Назад 1:20 (A)">
+                                ⏪ -1:20
+                            </button>
+                            <button class="action-btn" onclick="seekVideo(80)" title="Вперёд 1:20 (D)">
+                                +1:20 ⏩
+                            </button>
+                        {% endif %}
+
+                        <!-- Выбор качества -->
+                        <div class="quality-selector">
+                            <span class="quality-label">Качество:</span>
+                            {% for q in [720, 480, 360] %}
+                                {% if q != quality|int %}
+                                    <a href="/watch/{{ serv }}/{{ id }}/{{ data }}/{{ seria }}/q-{{ q }}/"
+                                       class="quality-btn">
+                                        {{ q }}p
+                                    </a>
+                                {% else %}
+                                    <span class="quality-btn active">{{ q }}p</span>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Переход к серии -->
+                    {% if series[1] != 0 %}
+                        <form method="POST" action="/watch/{{ serv }}/{{ id }}/{{ data }}/{{ seria }}/"
+                              class="seria-jump-form">
+                            <label>
+                                Перейти к серии:
+                                <input type="number" name="seria" min="1" max="{{ series[1] }}"
+                                       value="{{ seria }}" class="seria-input">
+                            </label>
+                            <button type="submit" class="btn btn-small">OK</button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Боковая панель -->
+            <aside class="watch-sidebar">
+                <!-- Совместный просмотр -->
+                {% if allow_watch_together %}
+                    <div class="sidebar-section watch-together">
+                        <h3>👥 Совместный просмотр</h3>
+
+                        <form method="POST" action="/create_room/" class="create-room-form">
+                            <button type="submit" class="btn btn-primary btn-full">
+                                Создать комнату
+                            </button>
+                        </form>
+
+                        <div class="room-info">
+                            <p class="room-desc">
+                                Автоматическая синхронизация: при воспроизведении/паузе у одного участника — у всех остальных плеер синхронизируется автоматически.
+                            </p>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- Скачать -->
+                <div class="sidebar-section download">
+                    <h3>📥 Скачать</h3>
+                    <a href="{{ url }}" class="btn btn-secondary btn-full" download>
+                        Скачать серию {{ seria }}
+                    </a>
+                    <a href="{{ straight_url }}" class="direct-link" target="_blank">
+                        Прямая ссылка
+                    </a>
+                </div>
+
+                <!-- Горячие клавиши -->
+                {% if not is_mobile %}
+                    <div class="sidebar-section shortcuts">
+                        <h3>⌨️ Горячие клавиши</h3>
+                        <ul class="shortcuts-list">
+                            <li><kbd>Space</kbd> — Пауза/Плей</li>
+                            <li><kbd>F</kbd> — Полный экран</li>
+                            <li><kbd>M</kbd> — Вкл/выкл звук</li>
+                            <li><kbd>A</kbd>/<kbd>D</kbd> — Перемотка ±1:20</li>
+                            <li><kbd>J</kbd>/<kbd>L</kbd> — Пред/След серия</li>
+                        </ul>
+                    </div>
+                {% endif %}
+
+                <!-- Информация -->
+                <div class="sidebar-section info">
+                    <h3>ℹ️ Информация</h3>
+                    <dl class="info-list">
+                        <dt>ID тайтла:</dt>
+                        <dd>{{ id_type }}:{{ id }}</dd>
+                        <dt>Перевод:</dt>
+                        <dd>{{ data.split('-')[1] }}</dd>
+                        <dt>Качество:</dt>
+                        <dd>{{ quality }}p</dd>
+                    </dl>
+                </div>
+            </aside>
+        </main>
+
+        <!-- Футер -->
+        <footer class="site-footer">
+            <div class="footer-content">
+                <p>
+                    Если плеер не работает — попробуйте сменить качество.
+                    <a href="/help/">Помощь и поддержка</a>
+                </p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Скрипты -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='js/player.js') }}"></script>
     <script>
-      const video = document.querySelector("video");
-      const page_data = JSON.parse(document.getElementById('data-holder').innerText)
-      const timing_link_div = document.getElementById('timing_link_div')
-      const create_qr_btn = document.getElementById('create_qr_btn')
-      let qrCode;
-
-      // Авто-фокус на видео плеере
-      video.focus()
-
-      if (page_data['timing'] > 0) {
-        video.currentTime = page_data['timing'];
-      }
-      
-      function skip_left() {
-        if (video.currentTime - 80 > 0) {
-          video.currentTime = video.currentTime-80
-        } else {
-          video.currentTime = 0
-        }
-      };
-      function skip_right() {
-        if (video.currentTime + 80 < video.duration) {
-          video.currentTime = video.currentTime+80
-        } else {
-          video.currentTime = video.duration
-        }
-      };
-      document.addEventListener('keydown', function(event) {
-        if (event.key == 'f' || event.key == 'а') {
-          if (!cancelFullscreen()) {
-            launchFullScreen(video)
-          }
-        } else if (event.key == 'm' || event.key == 'ь') {
-          if (video.muted) {
-            video.muted = false
-          } else {
-            video.muted = true
-          }
-        } else if (event.key == 'd' || event.key == 'в') {
-          skip_right()
-        } else if (event.key == 'a' || event.key == 'ф') {
-          skip_left()
-        } else if (event.key == 'l' || event.key == 'д') {
-          if (page_data['cur_ser'] < page_data['max_ser']) {
-            const href_next = document.getElementById('next_seria_a').href
-            document.location.replace(href_next)
-          }
-        } else if (event.key == 'j' || event.key == 'о') {
-          if (page_data['cur_ser'] > 1) {
-            const href_next = document.getElementById('previous_seria_a').href
-            document.location.replace(href_next)
-          }
-        }
-      });
-
-      function launchFullScreen(element) {
-        if(element.requestFullScreen) {
-          element.requestFullScreen();
-        } else if(element.mozRequestFullScreen) {
-          element.mozRequestFullScreen();
-        } else if(element.webkitRequestFullScreen) {
-          element.webkitRequestFullScreen();
-        }
-      }
-
-      function cancelFullscreen() {
-        if(document.cancelFullScreen) {
-          document.cancelFullScreen();
-        } else if(document.mozCancelFullScreen) {
-          document.mozCancelFullScreen();
-        } else if(document.webkitCancelFullScreen) {
-          document.webkitCancelFullScreen();
-        }
-      }
-
-      function generateQrCode(qrContent) {
-          return new QRCode("qr_code", {
-              text: qrContent,
-              width: 256,
-              height: 256,
-              colorDark: "#000000",
-              colorLight: "#ffffff",
-              correctLevel: QRCode.CorrectLevel.H,
-          });
-      }
-
-      create_qr_btn.addEventListener("click", function (event) {
-          const cur_dur = Math.trunc(video.currentTime)
-          let loc;
-          if (document.location.port) {
-            loc = document.location.protocol + '//' + document.location.hostname + ":" + document.location.port + '/watch/' + page_data['serv'] + '/' + page_data['id'] + '/' + page_data['data'] + '/' + page_data['seria'] + '/' + page_data['cur_quality'] + '/' + cur_dur + "/"
-          } else {
-            loc = document.location.protocol + '//' + document.location.hostname + '/watch/' + page_data['serv'] + '/' + page_data['id'] + '/' + page_data['data'] + '/' + page_data['seria'] + '/' + page_data['cur_quality'] + '/' + cur_dur + "/"
-          }
-          if (qrCode == null) {
-              qrCode = generateQrCode(loc);
-          } else {
-              qrCode.makeCode(loc);
-          }
-          timing_link_div.style.display = ''
-          document.getElementById('link_container').value = loc
-          document.getElementById("qr_code_container").style = "background-color: white; height: 300px; width: 300px; display: flex; align-items: center;justify-content: center;"
-      });
-
+        // Глобальные данные для JS
+        window.PLAYER_DATA = {
+            curSer: {{ seria }},
+            maxSer: {{ series[1] }},
+            curQuality: "{{ quality }}",
+            timing: {{ timing }},
+            serv: "{{ serv }}",
+            id: "{{ id }}",
+            data: "{{ data }}",
+            roomId: null,
+            userId: "{{ request.sid }}"
+        };
     </script>
-  </body>
+</body>
 </html>
