@@ -2,6 +2,8 @@
 # Основной файл Flask приложения — ИСПРАВЛЕННАЯ ВЕРСИЯ
 # Версия: 2.0.1 | Исправление: 404 на неверных URL + стабильность
 
+# khunaruag test
+
 from flask import Flask, render_template, request, redirect, abort, session, send_file, g, jsonify, url_for
 from flask_socketio import SocketIO, send, emit, join_room, leave_room
 from flask_mobility import Mobility
